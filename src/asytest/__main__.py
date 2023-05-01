@@ -1,5 +1,5 @@
 import sys
-from src.asytest import asytest
+from .asytest import run_tests
 
 
 if __name__ == "__main__":
@@ -8,4 +8,4 @@ if __name__ == "__main__":
         sys.exit(1)
 
     tests_path = sys.argv[1]
-    asytest.run_tests(tests_path)
+    run_tests(tests_path)
