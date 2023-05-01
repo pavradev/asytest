@@ -14,7 +14,7 @@ async def test_http_call_2():
     x = []
     print(x.length)
 
-async def test_http_call_3():
+async def test_with_a_very_long_name_http_call_3():
     print("start 3")
     await asyncio.sleep(1)
     assert False

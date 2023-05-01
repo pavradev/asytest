@@ -8,15 +8,8 @@ from importlib.util import spec_from_file_location, module_from_spec
 import inspect
 import traceback
 from types import ModuleType
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, List, Optional
 from datetime import timedelta
-
-if len(sys.argv) != 2:
-    print("Error: This script requires one command line argument for tests location.")
-    sys.exit(1)
-
-tests_path = sys.argv[1]
-print(tests_path)
 
 def get_python_files(path):
     """
@@ -161,7 +154,7 @@ def load_test_functions(module: ModuleType) -> List[Callable[..., Any]]:
             validate_function_async(func_name, func)
         return test_functions
 
-async def run_tests():
+async def run_tests(path: str) -> List[TestResult]:
     all_test_functions = []
     for file_location in get_python_files(tests_path):
         module = load_script_from_location(file_location)
@@ -181,7 +174,15 @@ async def run_tests():
     print_test_results(test_results)
     print_errors(test_results)
     print_summary(results=test_results, total_exec_time=exec_time)
+    return test_results
 
+def run_test(path: str) -> List[TestResult]:
+    asyncio.run(run_tests(path))
 
 if __name__ == "__main__":
-    asyncio.run(run_tests())
+    if len(sys.argv) != 2:
+        print("Error: This script requires one command line argument for tests location.")
+        sys.exit(1)
+
+    tests_path = sys.argv[1]
+    test_results = asyncio.run(run_tests(tests_path))
