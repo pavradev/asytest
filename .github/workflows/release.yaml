@@ -5,11 +5,13 @@ on:
     types: [published]
 
 jobs:
-  env:
-    TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-    TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
   package:
+
     runs-on: ubuntu-latest
+    env:
+      TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+      TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+
     steps:
       - uses: actions/checkout@v3
       - name: "Set up Python 3"
@@ -26,4 +28,3 @@ jobs:
       - name: "Upload dist"
         run: |
           python -m twine upload dist/*
-  publish:
