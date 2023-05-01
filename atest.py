@@ -152,18 +152,6 @@ def format_line(line: str, line_size: int = 80) -> str:
         right_padding = padding - left_padding
         return f"{'='*left_padding}{line}{'='*right_padding}"
 
-def validate_is_async_generator(func_name, func):
-    if not inspect.isasyncgenfunction(func):
-        raise ValueError(f"Fixture function {func_name} is not async generator")
-
-def load_fixtures(module: ModuleType) -> List[Callable[..., Any]]:
-        module_functions = inspect.getmembers(module, inspect.isfunction)
-        # Filter the functions to only include those that start with "fixture_"
-        fixture_functions = [func for func in module_functions if func[0].startswith("fixture_")]
-        for func_name, func in fixture_functions:
-            validate_is_async_generator(func_name, func)
-        return fixture_functions
-
 def load_test_functions(module: ModuleType) -> List[Callable[..., Any]]:
             # Get all functions from the module
         module_functions = inspect.getmembers(module, inspect.isfunction)
@@ -174,28 +162,18 @@ def load_test_functions(module: ModuleType) -> List[Callable[..., Any]]:
         return test_functions
 
 async def run_tests():
-    modules = [load_script_from_location(f) for f in get_python_files(tests_path)]
-
-    all_fixtures = {}
-    for m in modules:
-        for func_name, func in load_fixtures(m):
-            if func_name in all_fixtures:
-                raise ValueError(f"Duplicate fixture name: {func_name}")
-            all_fixtures[func_name] = func
-
     all_test_functions = []
-    for m in modules:
-        test_functions = load_test_functions(m)
+    for file_location in get_python_files(tests_path):
+        module = load_script_from_location(file_location)
+        test_functions = load_test_functions(module)
         # Call each test function
         for func_name, func in test_functions:
             validate_function_async(func_name, func)
             all_test_functions.append(wrap_test_func(
-                file_location=m.__name__, 
+                file_location=file_location, 
                 func_name=func_name, 
                 test_func=func
             ))
-
-    print(all_fixtures)
 
     start = time.time()
     test_results = await asyncio.gather(*[tf() for tf in all_test_functions])
