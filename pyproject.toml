@@ -1,17 +1,17 @@
 
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools", "setuptools_scm[toml]>=6.2"]
 
 [project]
 name = "asytest"
-version = "0.0.1"
+dynamic = ["version"]
 authors = [
   { name="Pavel Rabetski"},
 ]
 description = "Tiny async test framework for python "
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["asyncio"]
+dependencies = ["asyncio==3.4.3"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -20,6 +20,9 @@ classifiers = [
 
 [project.optional-dependencies]
 dev = ["pytest", "pip-tools"]
+
+[tool.setuptools_scm]
+write_to = "src/_version.py"
 
 [project.urls]
 "Homepage" = "https://github.com/pavradev/asytest"

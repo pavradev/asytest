@@ -1,3 +1,5 @@
+name: Build asytest
+
 on:
   push:
     branches: [ main ]
