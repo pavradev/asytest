@@ -22,7 +22,7 @@ classifiers = [
 dev = ["pytest", "pip-tools"]
 
 [tool.setuptools_scm]
-write_to = "src/_version.py"
+write_to = "src/asytest/_version.py"
 
 [project.urls]
 "Homepage" = "https://github.com/pavradev/asytest"
