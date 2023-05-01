@@ -154,7 +154,9 @@ def load_test_functions(module: ModuleType) -> List[Callable[..., Any]]:
             validate_function_async(func_name, func)
         return test_functions
 
-async def run_tests(path: str) -> List[TestResult]:
+async def run_tests_async(tests_path: str) -> List[TestResult]:
+    print(f"Runnint tests for {tests_path}")
+
     all_test_functions = []
     for file_location in get_python_files(tests_path):
         module = load_script_from_location(file_location)
@@ -176,8 +178,8 @@ async def run_tests(path: str) -> List[TestResult]:
     print_summary(results=test_results, total_exec_time=exec_time)
     return test_results
 
-def run_test(path: str) -> List[TestResult]:
-    asyncio.run(run_tests(path))
+def run_tests(tests_path: str) -> List[TestResult]:
+    return asyncio.run(run_tests_async(tests_path))
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
@@ -185,4 +187,4 @@ if __name__ == "__main__":
         sys.exit(1)
 
     tests_path = sys.argv[1]
-    test_results = asyncio.run(run_tests(tests_path))
+    run_tests(tests_path)
