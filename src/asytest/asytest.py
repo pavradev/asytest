@@ -1,7 +1,6 @@
 from enum import Enum
 from functools import wraps
 import os
-import sys
 import time
 import asyncio
 from importlib.util import spec_from_file_location, module_from_spec
@@ -180,11 +179,3 @@ async def run_tests_async(tests_path: str) -> List[TestResult]:
 
 def run_tests(tests_path: str) -> List[TestResult]:
     return asyncio.run(run_tests_async(tests_path))
-
-if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Error: This script requires one command line argument for tests location.")
-        sys.exit(1)
-
-    tests_path = sys.argv[1]
-    run_tests(tests_path)
