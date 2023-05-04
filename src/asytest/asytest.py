@@ -1,3 +1,4 @@
+import argparse
 from enum import Enum
 from functools import wraps
 import os
@@ -48,6 +49,7 @@ class TestStatus(Enum):
     ERROR = "ERROR"
     FAILED = "FAILED"
 
+
 class TestResult:
     """
     A class representing the result of a test.
@@ -64,9 +66,33 @@ class TestResult:
         self.status = status
         self.error = error
 
-
     def __repr__(self):
         return f"TestResult(execution_time={self.exec_time}, name='{self.name}', status={self.status})"
+
+
+class TestSuiteResult:
+    """
+    A class representing the result of running a test set.
+    """
+    def __init__(self, test_results: List[TestResult], exec_time: int) -> None:
+        self.test_results = test_results
+        self.exec_time = exec_time
+
+    def get_total_tests(self):
+        return len(self.test_results)
+    
+    def count_num_passed(self):
+        return sum(1 for r in self.test_results if r.status == TestStatus.SUCCESS)
+
+    def count_num_failed(self):
+        return sum(1 for r in self.test_results if r.status in [TestStatus.FAILED, TestStatus.ERROR])
+
+    def __repr__(self):
+        return (
+            f"TestSuiteResult(execution_time={self.exec_time}, "
+            f"failed={self.count_num_failed()}, "
+            f"success={self.count_num_passed()})"
+        )
 
 
 def wrap_test_func(file_location, func_name, test_func):
@@ -105,21 +131,20 @@ def print_test_results(test_results: List[TestResult]) -> None:
         print(f"{module}::{name} {color}{status:<10}\033[0m [{exec_time_formatted}s]")
     print()
 
-def print_summary(results: List[TestResult], total_exec_time) -> None:
+def print_summary(result: TestSuiteResult) -> None:
     """
-    Prints a summary of the test results to stdout.
+    Prints a summary of the test suite result to stdout.
 
     Args:
-        results: List of TestResult objects.
+        result: TestSuiteResult objects.
     """
-    num_tests = len(results)
-    num_passed = sum(1 for r in results if r.status == TestStatus.SUCCESS)
-    num_failed = num_tests - num_passed
-    total_time_formatted = str(timedelta(seconds=round(total_exec_time)))
+    total_time_formatted = str(timedelta(seconds=round(result.exec_time)))
     status_line = " "
+    num_failed = result.count_num_failed()
+    num_passed = result.count_num_passed()
     if num_failed > 0:
         status_line += f"\033[31m{num_failed} failed\033[0m, "
-    status_line += f"\033[32m{num_passed} passed\033[0m in {total_exec_time:.1f}s ({total_time_formatted}) "
+    status_line += f"\033[32m{num_passed} passed\033[0m in {result.exec_time:.1f}s ({total_time_formatted}) "
     print(format_line(" SUMMARY "))
     print(status_line)
 
@@ -145,7 +170,7 @@ def format_line(line: str, line_size: int = 80) -> str:
         return f"{'='*left_padding}{line}{'='*right_padding}"
 
 def load_test_functions(module: ModuleType) -> List[Callable[..., Any]]:
-            # Get all functions from the module
+        # Get all functions from the module
         module_functions = inspect.getmembers(module, inspect.isfunction)
         # Filter the functions to only include those that start with "test_"
         test_functions = [func for func in module_functions if func[0].startswith("test_")]
@@ -153,8 +178,36 @@ def load_test_functions(module: ModuleType) -> List[Callable[..., Any]]:
             validate_function_async(func_name, func)
         return test_functions
 
-async def run_tests_async(tests_path: str) -> List[TestResult]:
-    print(f"Runnint tests for {tests_path}")
+async def run_tests_concurrently(test_functions, max_concurrent) -> List[TestResult]:
+    results = []
+    tasks = []
+
+    # Start running coroutines
+    for tf in test_functions:
+        # Add new coroutine to the tasks list
+        tasks.append(asyncio.create_task(tf()))
+        # Check if the maximum number of concurrent coroutines has been reached
+        if len(tasks) == max_concurrent:
+            # Wait for any of the current coroutines to finish
+            done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            # Collect the results from the finished coroutines
+            for finished_task in done:
+                result = await finished_task
+                results.append(result)
+            # Remove the finished tasks from the tasks list
+            tasks = [t for t in tasks if not t.done()]
+
+    # Wait for all remaining coroutines to finish
+    done, _ = await asyncio.wait(tasks) if tasks else ([],[])
+    for finished_task in done:
+        result = await finished_task
+        results.append(result)
+
+    return results
+
+
+async def run_tests_async(tests_path: str, max_concurrent: int) -> TestSuiteResult:
+    print(f"Runnint tests for {tests_path} with {max_concurrent} max concurrent tests.")
 
     all_test_functions = []
     for file_location in get_python_files(tests_path):
@@ -170,12 +223,30 @@ async def run_tests_async(tests_path: str) -> List[TestResult]:
             ))
 
     start = time.time()
-    test_results = await asyncio.gather(*[tf() for tf in all_test_functions])
-    exec_time = time.time() - start
+    test_results = await run_tests_concurrently(all_test_functions, max_concurrent)
+    test_suite_result = TestSuiteResult(test_results, time.time() - start)
     print_test_results(test_results)
     print_errors(test_results)
-    print_summary(results=test_results, total_exec_time=exec_time)
-    return test_results
+    print_summary(test_suite_result)
+    return test_suite_result
 
-def run_tests(tests_path: str) -> List[TestResult]:
-    return asyncio.run(run_tests_async(tests_path))
+def run_tests(tests_path: str, max_concurrent: int) -> TestSuiteResult:
+    return asyncio.run(run_tests_async(tests_path, max_concurrent))
+
+def parse_args():
+    """Parse the command-line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Run tests in parallel using asyncio"
+    )
+    parser.add_argument(
+        "resource", 
+        help="Path to the test resource. Can be a file or a folder."
+    )
+    parser.add_argument(
+        "-n",
+        "--max-concurrent",
+        type=int,
+        default=10,
+        help="Maximum number of tests to run concurrently",
+    )
+    return parser.parse_args()
