@@ -128,7 +128,7 @@ def print_test_results(test_results: List[TestResult]) -> None:
         module = result.module
         status = result.status.value
         color = "\033[92m" if status == "SUCCESS" else "\033[91m"
-        print(f"{module}::{name} {color}{status:<10}\033[0m [{exec_time_formatted}s]")
+        print(f"[{exec_time_formatted}s]\t{module}::{name} {color}{status:<10}\033[0m")
     print()
 
 def print_summary(result: TestSuiteResult) -> None:
